@@ -1,0 +1,23 @@
+#
+# 这个文件一般在 /etc/nginx/sites-enabled/default
+# 默认站点禁止任何域名访问，防治域名被恶意解析来进行12306抢票了
+# https://www.v2ex.com/t/585515
+# http://niliu.me/articles/367.html
+# https://www.93bok.com/Nginx%E5%9F%9F%E5%90%8D%E8%A2%AB%E6%81%B6%E6%84%8F%E8%A7%A3%E6%9E%90%E6%9D%A5%E8%BF%9B%E8%A1%8C12306%E6%8A%A2%E7%A5%A8/
+#
+server {
+    listen 443 ssl default_server;
+    ssl on;
+    server_name _;
+    ssl_certificate         ${DEPLOY_DOCKER_CONTAINER_CERT_FILE};
+    ssl_certificate_key     ${DEPLOY_DOCKER_CONTAINER_KEY_FILE};
+    ssl_dhparam             ${DEPLOY_DOCKER_CONTAINER_FULLCHAIN_FILE};
+    return 444;
+}
+server {
+    listen       80  default_server;
+    server_name  _;
+    return       444;
+}
+
+proxy_cache_path /cache_data/nginx/proxy_cache/yfxs levels=1:2 keys_zone=yfxs_proxy_cache_zone:200m inactive=30d max_size=15g use_temp_path=off;

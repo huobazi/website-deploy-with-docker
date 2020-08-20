@@ -1,0 +1,95 @@
+upstream yfxs_app_upstream {
+  server 127.0.0.1:9000 fail_timeout=0;
+  server 127.0.0.1:9001 backup;
+  keepalive 3;
+}
+
+########################### yfxs web Server #############################
+server {
+  listen 80;
+  server_name ${YFXS_MAIN_DOMAIN};
+  root /yfxs/www;
+
+  access_log  /var/log/nginx/yfxs.access.log compression;
+  error_log   /var/log/nginx/yfxs.error.log;
+
+  ssl on;
+  listen 443 ssl;
+  ssl_certificate         ${DEPLOY_DOCKER_CONTAINER_CERT_FILE};
+  ssl_certificate_key     ${DEPLOY_DOCKER_CONTAINER_KEY_FILE};
+  ssl_dhparam             ${DEPLOY_DOCKER_CONTAINER_FULLCHAIN_FILE};
+  ssl_prefer_server_ciphers on;
+
+  # gzip
+  gzip on;
+  gzip_disable "msie6";
+  gzip_vary on;
+  gzip_proxied any;
+  gzip_comp_level 6;
+  gzip_buffers 16 8k;
+  gzip_http_version 1.1;
+  gzip_types text/plain text/css text/xml application/json application/javascript application/xml+rss application/atom+xml image/svg+xml;
+
+  location /nginx_status {
+    allow 127.0.0.1;
+    deny all;
+    stub_status on;
+  }
+  location = /favicon.ico {
+    try_files $uri =204;
+    access_log off;
+    error_log /dev/null;
+    log_not_found off;
+  }
+   location = /robots.txt {
+    try_files $uri =204;
+    access_log off;
+    access_log off;
+    log_not_found off;
+  }
+  location ~ ^(/system|/.well-known|/403.html|/404.html|/422.html|/500.html|/404.png|/415.png|/favicon.png|/favicon.ico|/robots.txt) {
+    access_log        off;
+    error_log /dev/null;
+    expires           30d;
+    gzip_static on;
+    add_header  Cache-Control public;
+  }
+
+  location ~^/assets  {
+    access_log off;
+    error_log /dev/null;
+    gzip_static on;
+    expires 365d;
+    add_header Cache-Control public;
+    add_header Last-Modified "";
+    add_header ETag "";
+  }
+
+  rewrite ^/(.*)/$ /$1 permanent; # Truncate trailing slashes
+  #rewrite ^([^.\?]*[^/])$ $1/ permanent; # Add trailing slashes
+
+  error_page 500 502 503 504 /500.html;
+  error_page 401 403 /403.html;
+  error_page 404 /404.html;
+
+  client_max_body_size 8m;
+  keepalive_timeout 10;
+
+  location / {
+    proxy_redirect     off;
+    proxy_http_version 1.1;
+    proxy_buffering    on;
+    proxy_cache_bypass $http_upgrade;
+    proxy_set_header   Host $http_host;
+    proxy_set_header   X-Forwarded-Proto $scheme;
+    proxy_set_header   X-Forwarded-Host $http_host;
+    proxy_set_header   X-Forwarded-Server $http_host;
+    proxy_set_header   X-Real-IP        $remote_addr;
+    proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
+    proxy_set_header   Upgrade $http_upgrade;
+    proxy_set_header   Connection "Upgrade";
+    proxy_pass         http://yfxs_app_upstream;
+
+    gzip on;
+  }
+}

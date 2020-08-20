@@ -1,0 +1,78 @@
+########################### yfxs OSS Proxy Server #############################
+
+
+upstream oss-proxy-upstream{
+  server ${OSS_BUCKET_INTERNAL_DOMAIN};
+}
+server {
+  listen 80;
+  server_name ${OSS_PROXY_DOMAIN};
+
+  ssl on;
+  listen 443 ssl;
+  ssl_certificate         ${DEPLOY_DOCKER_CONTAINER_CERT_FILE};
+  ssl_certificate_key     ${DEPLOY_DOCKER_CONTAINER_KEY_FILE};
+  ssl_dhparam             ${DEPLOY_DOCKER_CONTAINER_FULLCHAIN_FILE};
+  ssl_prefer_server_ciphers on;
+
+  error_page 500 501 502 503 504 401 402 403 404 http://${YFXS_MAIN_DOMAIN}/404.png;
+
+  add_header Cache-Control public;
+  add_header X-Cache-Status $upstream_cache_status;
+
+  location ~ {
+      access_log off;
+      error_log /dev/null;
+
+      proxy_pass http://oss-proxy-upstream;
+      proxy_redirect     off;
+      proxy_set_header   Host             ${OSS_BUCKET_INTERNAL_DOMAIN};#Host要修改为OSS的域名或OSS控制台绑定的域名，否则OSS无法识别会报错
+      proxy_set_header   X-Real-IP        $remote_addr;
+      proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
+      proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+      proxy_max_temp_file_size 0;
+      proxy_connect_timeout      90;
+      proxy_send_timeout         90;
+      proxy_read_timeout         90;
+      proxy_buffer_size          4k;
+      proxy_buffers              4 32k;
+      proxy_busy_buffers_size    64k;
+      proxy_temp_file_write_size 64k;
+
+      proxy_hide_header x-oss-hash-crc64ecma;
+      proxy_hide_header x-oss-object-type;
+      proxy_hide_header x-oss-request-id;
+      proxy_hide_header x-oss-storage-class;
+
+      # cookies are useless on these static, public resources
+      proxy_ignore_headers set-cookie;
+      proxy_ignore_headers Cache-Control;
+
+      proxy_hide_header set-cookie;
+      proxy_set_header cookie "";
+
+      # only rely on last-modified (which will never change)
+      proxy_hide_header etag;
+
+      # heavily cache results locally
+      proxy_cache yfxs_proxy_cache_zone;
+      proxy_cache_methods GET HEAD;
+      proxy_cache_key $uri;
+
+      proxy_cache_valid 200 30d;
+      proxy_cache_valid 206 304 301 302 10d;
+      proxy_cache_valid 403 24h;
+      proxy_cache_valid 404 24h;
+      proxy_cache_valid any 24;
+
+      gzip on;
+      # heavily cache results downstream
+      expires max;
+      gzip_static on;
+
+      proxy_cache_bypass $http_pragma;
+      proxy_cache_use_stale error timeout invalid_header updating;
+      proxy_cache_revalidate on;
+      proxy_intercept_errors on; # 关键参数：这个变量开启后，我们才能自定义错误页面，当后端返回 403 404 500 ，nginx拦截错误定义错误页面
+  }
+}

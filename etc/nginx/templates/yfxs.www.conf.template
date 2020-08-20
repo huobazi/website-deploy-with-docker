@@ -1,0 +1,16 @@
+
+########################### yfxs www Server #############################
+
+server {
+  listen 80;
+  server_name www.${YFXS_MAIN_DOMAIN};
+
+  ssl on;
+  listen 443 ssl;
+  ssl_certificate         ${DEPLOY_DOCKER_CONTAINER_CERT_FILE};
+  ssl_certificate_key     ${DEPLOY_DOCKER_CONTAINER_KEY_FILE};
+  ssl_dhparam             ${DEPLOY_DOCKER_CONTAINER_FULLCHAIN_FILE};
+  ssl_prefer_server_ciphers on;
+
+  return 301 $scheme://${YFXS_MAIN_DOMAIN}$request_uri;
+}
