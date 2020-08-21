@@ -10,11 +10,7 @@ binDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 #---------------------------------------------------------------------
 # STEP 1, running...
 #---------------------------------------------------------------------
-
-if [ -z ${YFXS_IMAGE_VERSION+x} ];then
-  YFXS_IMAGE_VERSION=latest
-fi
-new_tag=$(date "+%Y%m%d%H%M%S")
-docker tag $YFXS_IMAGE_NAME:$YFXS_IMAGE_VERSION $YFXS_IMAGE_NAME:$new_tag
-echo "Tag: $YFXS_IMAGE_VERSION ----> $new_tag"
-echo $new_tag > .app-evision
+. $binDir/_restart.sh
+docker-compose stop nginx
+docker-compose up -d app
+docker-compose stop app_backup

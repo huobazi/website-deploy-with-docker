@@ -1,44 +1,31 @@
-POSTGRES_DB=yfxs_production
-IMAGE_NAME:=registry-internal.cn-hangzhou.aliyuncs.com/huobazi/yfxs
+WORKDIR:=$(shell pwd)
+BINDIR:=$(WORKDIR)/bin
 
+usage:
+	@echo "Usage: \nThis yfxs deploy controller \nPlease run the inner task"
 install:
-	@make secret
-	@docker-compose run app bundle exec rake db:prepare
-	@sh ./bin/touch-deploy-tag.sh
-	@make install-acme
-update:	
-	@docker-compose pull
-	@make secret
-	@make restart
-	@sh ./bin/touch-deploy-tag.sh
+	@sh $(BINDIR)/install.sh
+update:
+	@sh $(BINDIR)/update.sh
 rollback:
-ifndef IMAGE_VERSION
-	@echo "Usage: \n make rollback IMAGE_VERSION=20200816225403 \n OR\n  IMAGE_VERSION=20200816225403 make rollback"
+ifndef YFXS_IMAGE_VERSION
+	@echo "Usage: \n	make rollback YFXS_IMAGE_VERSION=20200816225403 \nOR\n	YFXS_IMAGE_VERSION=20200816225403 make rollback"
 else
 	@make restart-app
-	@echo "Rollback to : $(IMAGE_VERSION)"
-	@echo $(version) > .app-evision
+	@echo "Rollback to : $(YFXS_IMAGE_VERSION)"
+	@echo $(YFXS_IMAGE_VERSION) > .app-evision
 endif
 secret:
-	@test -f ./environments/app.secret.env || echo "SECRET_KEY_BASE=`openssl rand -hex 128`" > ./environments/app.secret.env
+	@test -f ./environments/app.secret.env || echo "SECRET_KEY_BASE=`openssl rand -hex 128`" > $(INCDIR)/environments/app.secret.env
 	@cat ./environments/app.secret.env
 re-secret:
 	@rm -f ./environments/app.secret.env && make secret
 start:
 	@docker-compose up -d
 restart:
-	@make restart-app
-	@docker-compose stop nginx
-	@docker-compose up -d app
-	@docker-compose stop app_backup
+	@sh $(BINDIR)/restart.sh
 restart-app:
-	@docker-compose up -d app_slave
-	@sleep 15
-	@docker-compose stop app
-	@docker-compose up -d app
-	@sleep 20
-	@docker-compose stop app_slave worker
-	@docker-compose up -d worker
+	@sh $(BINDIR)/restart-app.sh
 status:
 	@docker-compose ps
 stop:
@@ -51,21 +38,19 @@ reindex:
 	@echo "Search engine reindex..."
 	@docker-compose run app bundle exec rake reindex
 backup-db:
-	@docker-compose exec -u postgres postgres  pg_dump --format=custom --compress=6 --dbname=$(POSTGRES_DB) > /backup/$(POSTGRES_DB)_$( date +%Y%m%d%H%M%S ).dump
+	@docker-compose exec -u postgres postgres  pg_dump --format=custom --compress=6 --dbname=$(YFXS_POSTGRES_DB) > /backup/$(YFXS_POSTGRES_DB)_$( date +%Y%m%d%H%M%S ).dump
 restore-db:
 ifndef file
-	@echo "Usage: \n make restore-db file=/xx/yy/zz.dump \n OR\n file=/xx/yy/zz.dump make restore-db"
+	@echo "Usage: \n	make restore-db file=/xx/yy/zz.dump \nOR\n	file=/xx/yy/zz.dump make restore-db"
 else
-	@docker-compose exec -i -u postgres postgres pg_restore ---dbname=$(POSTGRES_DB) $(file)
+	@docker-compose exec -i -u postgres postgres pg_restore ---dbname=$(YFXS_POSTGRES_DB) $(file)
 endif
 clean:
 	@echo "Clean Docker images..."
 	@docker ps -aqf status=exited | xargs docker rm && docker images -qf dangling=true | xargs docker rmi
-foo:
-	@echo ""
-	@echo "foo is:" $(bar)
 install-docker:
-	@sh ./bin/install-docker.sh
+	@sh $(BINDIR)/install-docker.sh
 install-acme:
-	@sh ./bin/install-acme.sh
-
+	@sh $(BINDIR)/install-acme.sh
+foo:
+	@sh $(BINDIR)/foo.sh
