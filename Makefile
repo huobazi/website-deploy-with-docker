@@ -3,6 +3,8 @@ BINDIR:=$(WORKDIR)/bin
 
 usage:
 	@echo "Usage: \nThis yfxs deploy controller \nPlease run the inner task"
+install-docker:
+	@sh $(BINDIR)/install-docker.sh
 install:
 	@sh $(BINDIR)/install.sh
 update:
@@ -20,6 +22,8 @@ secret:
 	@cat ./environments/app.secret.env
 re-secret:
 	@rm -f ./environments/app.secret.env && make secret
+install-acme:
+	@sh $(BINDIR)/install-acme.sh
 start:
 	@docker-compose up -d
 restart:
@@ -48,9 +52,5 @@ endif
 clean:
 	@echo "Clean Docker images..."
 	@docker ps -aqf status=exited | xargs docker rm && docker images -qf dangling=true | xargs docker rmi
-install-docker:
-	@sh $(BINDIR)/install-docker.sh
-install-acme:
-	@sh $(BINDIR)/install-acme.sh
 foo:
 	@sh $(BINDIR)/foo.sh

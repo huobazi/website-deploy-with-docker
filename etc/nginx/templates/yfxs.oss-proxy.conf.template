@@ -1,6 +1,5 @@
 ########################### yfxs OSS Proxy Server #############################
 
-
 upstream oss-proxy-upstream{
   server ${OSS_BUCKET_INTERNAL_DOMAIN};
 }
