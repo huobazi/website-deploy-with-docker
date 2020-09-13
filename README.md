@@ -1,4 +1,4 @@
-# Deployment for YFXS with Docker
+# Deployment website with Docker
 
 This project is a docker compose installation of the my website.
 
