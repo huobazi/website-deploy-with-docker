@@ -9,6 +9,7 @@ binDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 #---------------------------------------------------------------------
 # STEP 1, running...
 #---------------------------------------------------------------------
+echo "Update yfxs app to ${YFXS_IMAGE_VERSION}"
 docker-compose pull
 make secret
 make restart
