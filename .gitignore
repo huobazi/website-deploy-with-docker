@@ -1,14 +1,4 @@
-
 .DS_Store
 Thumbs.db
-
 .app-evision
-
-# environments/acme.sh.env
-# environments/app.env
-# environments/app.secret.env
-# environments/docker.env
-# environments/nginx.env
-# environments/postgres.env
-
 environments/*.env
