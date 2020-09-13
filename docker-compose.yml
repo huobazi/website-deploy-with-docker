@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  nginx:
+    container_name: "nginx"  
+    image: nginx:1.19.1-alpine
+    port:
+      - '9080:80'
+      - '9443:443'
+    labels:
+      - ${DEPLOY_DOCKER_CONTAINER_LABEL:-sh.acme.autoload.domain.example.com}
+    env_file: 
+      - ./environments/nginx.env
+      - ./environments/acme.sh.env
+    volumes:
+      - ./etc/nginx/templates:/etc/nginx/templates
+      - /volumes/nginx/ssl:/etc/nginx/ssl  
+      - /volumes/nginx/logs/:/var/log/nginx  
+      - /volumes/yfxs/www /yfxs/www  
+
+  app: &app_base
+    container_name: "yfxs-app"
+    image: ${YFXS_IMAGE_NAME}:${YFXS_IMAGE_VERSION:-latest}
+    ports:
+      - "9000"
+    env_file: 
+      - ./environments/app.env
+      - ./environments/app.secret.env
+    volumes: 
+      - /volumes/yfxs/www:/app/public
+    links:
+      - postgres
+      - redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+  app_slave:
+    <<: *app_base
+    container_name: "yfxs-app-slave"
+    command: bundle exec puma -C config/puma-docker-slave.rb
+    ports:
+      - "9001"
+  worker:
+      <<: *app_base
+      container_name: "yfxs-worker"
+      command: bundle exec sidekiq -C config/sidekiq.yml
+      ports: []
+      depends_on:
+        - app
+  redis:
+    container_name: "redis"
+    image: redis:6-alpine
+    ports:
+      - "6379"
+    volumes:
+      - ./etc/redis/redis.conf:/usr/local/etc/redis/redis.conf
+      - /volumes/redis/data/:/data
+      - /volumes/redis/backup/:/backup/
+
+    command: redis-server /usr/local/etc/redis/redis.conf
+    healthcheck:
+      test: redis-cli ping
+      interval: 1s
+      timeout: 3s
+      retries: 30
+  postgres:
+    container_name: "postgres"
+    image: postgres:13-alpine
+    env_file: 
+      - ./environments/postgres.env
+    ports:
+      - "5432"  
+    volumes:
+      - /volumes/postgres/data/:/var/lib/postgresql/data/
+      - /volumes/postgres/backup/:/backup/
+    healthcheck:
+      test: pg_isready -U postgres -h 127.0.0.1
+      interval: 5s
